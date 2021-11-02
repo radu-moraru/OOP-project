@@ -1,0 +1,3 @@
+"C:\Program Files\JetBrains\CLion 2021.1.1\bin\cmake\win\bin\cmake.exe" -E rm -f CMakeFiles\oop_proj.dir/objects.a
+C:\msys64\mingw64\bin\ar.exe cr CMakeFiles\oop_proj.dir/objects.a @CMakeFiles\oop_proj.dir\objects1.rsp
+C:\msys64\mingw64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\oop_proj.dir/objects.a -Wl,--no-whole-archive -o oop_proj.exe -Wl,--out-implib,liboop_proj.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\oop_proj.dir\linklibs.rsp
