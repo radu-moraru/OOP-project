@@ -17,10 +17,8 @@ class Base {
     friend std::ostream& operator<<(std::ostream&, const Value&);
     friend void read_from_buffer(Value&, char *, std::size_t);
     friend void write_to_buffer(const Value&, char *, std::size_t);
-    friend class Float;
-    friend class Int;
-    friend class String;
-
+    
+protected:
     virtual void read(std::istream&) = 0;
     virtual void write(std::ostream&) = 0;
     virtual void write_to_buffer(char *, std::size_t) = 0;

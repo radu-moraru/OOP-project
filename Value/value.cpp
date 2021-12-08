@@ -38,5 +38,3 @@ void read_from_buffer(Value& value, char *buffer, std::size_t sz) {
 bool operator<(const Value& val1, const Value& val2) {
     return *val1.value_ptr < *val2.value_ptr;
 }
-
-#include "Value.h"
