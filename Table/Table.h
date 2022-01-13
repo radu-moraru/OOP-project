@@ -29,13 +29,13 @@ public:
     std::istream& delete_rows(std::istream&);
     std::ostream& select_rows(std::ostream&, std::istream&);
 
+    static bool create_table(const std::string&, std::istream& repl);
+    static void delete_table(const std::string& table_name);
+
     std::string name() { return n; }
 private:
     Pager pager;
     std::string n;
 };
-
-bool create_table(const std::string&, std::istream& repl);
-void delete_table(const std::string& table_name);
 
 #endif //CPPDB_TABLE_H

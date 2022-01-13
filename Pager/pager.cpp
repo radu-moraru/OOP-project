@@ -8,6 +8,7 @@
 #include <vector>
 #include <iostream>
 #include "pager.h"
+#include "../TableException.h"
 
 using std::vector;
 using std::string;
@@ -18,10 +19,11 @@ using std::sort;
  */
 Pager::Pager(const string& file_name): file_name(file_name),
                                             page_data{0}, row_size(0) {
-    std::cout << file_name << std::endl;
     std::fstream file(file_name,
                       std::ios::binary |
                       std::ios::in);
+    if (file.fail())
+        throw TableInitException(file_name);
 
     page_pos = 0;
 
@@ -33,15 +35,13 @@ Pager::Pager(const string& file_name): file_name(file_name),
 
     primary_key_pos = *(int *)iter;
     iter += sizeof(primary_key_pos);
-
-    file.close();
 }
 
 /*
  * Citeste datele despre coloane din fisierul tabelului.
  */
 vector<string> Pager::get_column_data() {
-    std::cout << page_data << std::endl;
+//    std::cout << page_data << std::endl;
     vector<string> column_data;
 
     char* iter1 = page_data + HEADER_SIZE;
@@ -67,6 +67,7 @@ vector<string> Pager::get_column_data() {
         column_data.push_back(column_type);
         int column_size;
 
+        // todo: schimb in functii virtuale
         if (column_type == "c") {
             column_size = *(int *)iter1;
 
@@ -121,8 +122,7 @@ bool Pager::read_page_at_pos(int pos) {
     std::fstream file(file_name,
                       std::ios::binary |
                       std::ios::in);
-
-    std::clog << "Reading page at pos " << page_pos << std::endl;
+//    std::clog << "Reading page at pos " << page_pos << std::endl;
 
     file.seekg(pos);
 
@@ -141,7 +141,6 @@ bool insert_row_in_page(char* page_data, const char* row_data, std::size_t row_s
     int first_bit = *(int *)page_data;
 
     if (first_bit + row_size <= page_size) {
-        std::clog << "can insert row\n";
         memcpy(page_data+first_bit, row_data, row_size);
         *(int *)page_data = first_bit + row_size;
         return true;
@@ -159,7 +158,7 @@ void write_page(const string& file_name,
                       std::ios::out |
                       std::ios::in);
 
-    std::clog << "Writing page at pos " << page_pos << std::endl;
+//    std::clog << "Writing page at pos " << page_pos << std::endl;
     file.seekg(page_pos);
 
     file.write(page_data, page_size);
@@ -178,11 +177,11 @@ void append_page(const string& file_name) {
 
     file.seekg(0, std::fstream::end);
 
-    std::clog << "Writing new page at position " << file.tellg() << std::endl;
+//    std::clog << "Writing new page at position " << file.tellg() << std::endl;
 
     char empty_page[page_size] = {0};
     *(int *)empty_page = sizeof(int);
-    std::clog << "New page with first row going at: " << *(int *)empty_page << std::endl;
+//    std::clog << "New page with first row going at: " << *(int *)empty_page << std::endl;
     file.write(empty_page, page_size);
 
     file.close();
@@ -200,6 +199,7 @@ void Pager::insert_row(std::istream& repl) {
     char *iter = row_data;
     for (int i = 0; i < column_names.size(); i++) {
         Value val(column_types[i], column_sizes[i]);
+        std::cout << "Value of column " << column_names[i] << "(" << column_types[i] << "):";
         repl >> val;
 
         write_to_buffer(val, iter, column_sizes[i]);
@@ -210,11 +210,12 @@ void Pager::insert_row(std::istream& repl) {
 
     if (has_primary_key) {
         // todo: implementez btree
+        throw std::runtime_error("B-tree-ul nu este implementat.");
     }
 
     while (!insert_row_in_page(page_data, row_data, row_size)) {
         if (!read_next_page()) {
-            std::clog << "Could not fit row in existing page, creating new one\n";
+//            std::clog << "Could not fit row in existing page, creating new one\n";
             append_page(file_name);
             read_next_page();
             insert_row_in_page(page_data, row_data, row_size);
@@ -222,7 +223,7 @@ void Pager::insert_row(std::istream& repl) {
         }
     }
 
-    std::clog << "Writing at page_pos: " << page_pos << std::endl;
+//    std::clog << "Writing at page_pos: " << page_pos << std::endl;
 
     write_page(file_name, page_data, page_pos);
 }
@@ -243,6 +244,7 @@ vector<vector<Value>> Pager::select_rows(int column_position, const Value& val) 
 
     if (has_primary_key) {
         // todo: implementez btree
+        throw std::runtime_error("B-tree-ul nu este implementat.");
     }
 
     while (read_next_page()) {
@@ -297,7 +299,6 @@ void Pager::delete_rows_from_page(int pos, const Value& val) {
 
     // mut toate liniile dupa cea stearsa cu o pozitie mai aproape de inceputul fisierului
     for (auto& i : deleted_pos) {
-        std::clog << "Deleting row at position " << i << std::endl;
         memcpy(page_data+sizeof(int)+row_size*i,
                page_data+*(int *)page_data-row_size,
                row_size);
@@ -316,6 +317,7 @@ void Pager::delete_rows_from_page(int pos, const Value& val) {
 void Pager::delete_rows(int column_position, const Value& val) {
     if (has_primary_key) {
         // TODO: implementez btree
+        throw std::runtime_error("B-tree-ul nu este implementat.");
     }
     while (read_next_page()) {
         delete_rows_from_page(column_position, val);
@@ -336,7 +338,7 @@ void Pager::update_rows_from_page(int pos, const Value& old_val, int updated_pos
             for (int j = 0; j < updated_pos; j++) pos_in_row += column_sizes[j];
 
             std::size_t pos_in_page = sizeof(int) + i*row_size + pos_in_row;
-            write_to_buffer(new_val, page_data+pos_in_page, column_sizes[pos]);
+            write_to_buffer(new_val, page_data+pos_in_page, column_sizes[updated_pos]);
         }
     }
 
@@ -348,6 +350,7 @@ void Pager::update_rows(int column_position, const Value& old_value,
                         int updated_pos, const Value& new_value) {
     if (has_primary_key) {
         // TODO: implementez btree
+        throw std::runtime_error("B-Tree-ul nu a fost implementat.");
     }
 
     while (read_next_page()) {

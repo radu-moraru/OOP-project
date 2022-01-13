@@ -7,9 +7,9 @@
 
 #include <string>
 #include "string_val.h"
-#include "float.h"
+#include "float_val.h"
 #include "int.h"
-#include "../Ptr/ptr.h"
+#include "../Ptr/Ptr.h"
 
 class Value {
     friend std::istream& operator>>(std::istream&, const Value&);

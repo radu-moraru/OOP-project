@@ -9,10 +9,11 @@
 #include <sstream>
 #include <cstdio>
 #include "Table.h"
+#include "../TableException.h"
 
 using namespace std;
 
-bool open_file(std::fstream& file, const std::string& file_name) {
+void open_file(std::fstream& file, const std::string& file_name) {
 //    Posibil sa nu aiba sens verificarea, filesystem nu este portabil.
 
 //    if (std::filesystem::exists(file_name)) {
@@ -20,10 +21,14 @@ bool open_file(std::fstream& file, const std::string& file_name) {
 //        return false;
 //    }
 //
+    std::fstream test(file_name,
+                      std::ios::binary | std::ios::in);
+    if (test.is_open())
+        throw(TableCreateException(file_name));
+    test.close();
+
     file.open(file_name,
               std::ios::binary | std::ios::out);
-
-    return true;
 }
 
 void write_empty_page(std::fstream& file) {
@@ -58,10 +63,13 @@ void generate_file_header(char *page_buffer, std::istream& repl) {
     bool has_primary_key;
     int primary_key_pos = -1;
 
+    cout << "Does the table have a primary key? (1 = Yes, 0 = No):";
     repl >> has_primary_key;
 
-    if (has_primary_key)
+    if (has_primary_key) {
+        cout << "What is the index of the primary key?";
         repl >> primary_key_pos;
+    }
 
     memcpy(page_buffer, &has_primary_key, sizeof(has_primary_key));
     page_buffer += sizeof(has_primary_key);
@@ -74,13 +82,12 @@ void generate_file_header(char *page_buffer, std::istream& repl) {
  * Citeste tipurile de date ale coloanelor si dimensiunile lor maxime (in cazul string-urilor)
  * Scrie toate datele pe prima pagina a fisierului tabelului.
  */
-bool create_table(const std::string& table_name, std::istream& repl) {
+bool Table::create_table(const std::string& table_name, std::istream& repl) {
     // initialize table
     using std::string;
 
     std::fstream file;
-    if (!open_file(file, table_name+".tab"))
-        return false;
+    open_file(file, table_name+".tab");
 
     char page_buffer[page_size] = {0};
 
@@ -88,20 +95,21 @@ bool create_table(const std::string& table_name, std::istream& repl) {
     char *iter = page_buffer + HEADER_SIZE;
 
     string column_name, column_dtype;
-    cout << "Done with page header\n";
     // TODO: stop before page overflow
     // TODO: check if rows exceed page size
     while (column_name.find(';') == string::npos &&
            column_dtype.find(';') == string::npos) {
+        cout << "Name of column:";
         repl >> column_name;
         if (column_name.find(';') != string::npos) {
-            std::clog << "Ignored invalid column\n";
+            std::cout << "Ignored invalid column\n";
             break;
         }
+        cout << "Data type of column:";
         repl >> column_dtype;
 
         if (string("icf").find(column_dtype[0]) == string::npos) {
-            std::clog << "Ignored invalid column\n";
+            std::cout << "Ignored invalid column\n";
             continue;
         }
 
@@ -123,9 +131,8 @@ bool create_table(const std::string& table_name, std::istream& repl) {
     return true;
 }
 
-void delete_table(const std::string& table_name) {
+void Table::delete_table(const std::string& table_name) {
     std::string file_name = table_name+".tab";
-    // TODO: de testat stergerea
     remove(file_name.c_str());
 }
 
@@ -150,6 +157,7 @@ Table::Table(const std::string& table_name): pager(table_name+".tab")  {
     }
     if (pager.has_primary_key) {
         // TODO: implementez b-tree si adaug posibilitatea de a avea chei primare.
+        throw runtime_error("B-Tree-ul nu este implementat");
     }
 }
 
@@ -170,27 +178,24 @@ int get_column_position(const string& column_name,
         if (column_name == column_names[i])
             return i;
     }
-    return -1;
+    throw ColumnNotFound(column_name);
 }
 
 /*
  * Selecteaza si printeaza toate entryurile care indeplinesc
  * o conditie de tipul coloana = valoare.
  *
- * TODO: as putea muta totul in pager functia din pager
+ * TODO: as putea muta totul in functia din pager
  */
 std::ostream& Table::select_rows(std::ostream& os, std::istream& is) {
     std::string column_name;
+    cout << "Column name:";
     is >> column_name;
 
     int column_pos = get_column_position(column_name, pager.column_names);
 
-    if (column_pos == -1) {
-        clog << "Could not find requested column\n";
-        return os;
-    }
-
     Value val(pager.column_types[column_pos], pager.column_sizes[column_pos]);
+    cout << "Value for column(" << pager.column_types[column_pos] << "):";
     is >> val;
 
     vector<vector<Value>> selected_rows = pager.select_rows(column_pos, val);
@@ -213,29 +218,23 @@ std::ostream& Table::select_rows(std::ostream& os, std::istream& is) {
  */
 std::istream& Table::update_rows(std::istream& is) {
     std::string searched_name;
+    cout << "Searched column name:";
     is >> searched_name;
 
     int searched_pos = get_column_position(searched_name, pager.column_names);
 
-    if (searched_pos == -1) {
-        clog << "Could not find requested column\n";
-        return is;
-    }
-
     Value src_val(pager.column_types[searched_pos], pager.column_sizes[searched_pos]);
+    cout << "Searched column value(" << pager.column_types[searched_pos] << "):";
     is >> src_val;
 
     std::string updated_name;
+    cout << "Updated column name:";
     is >> updated_name;
 
     int updated_pos = get_column_position(updated_name, pager.column_names);
 
-    if (updated_pos == -1) {
-        clog << "Could not find requested column\n";
-        return is;
-    }
-
     Value new_val(pager.column_types[updated_pos], pager.column_sizes[updated_pos]);
+    cout << "Updated column value(" << pager.column_types[updated_pos] << "):";
     is >> new_val;
 
     pager.update_rows(searched_pos, src_val, updated_pos, new_val);
@@ -248,16 +247,13 @@ std::istream& Table::update_rows(std::istream& is) {
  */
 std::istream& Table::delete_rows(std::istream& is) {
     std::string column_name;
+    cout << "Column name:";
     is >> column_name;
 
     int column_pos = get_column_position(column_name, pager.column_names);
 
-    if (column_pos == -1) {
-        clog << "Could not find requested column\n";
-        return is;
-    }
-
     Value val(pager.column_types[column_pos], pager.column_sizes[column_pos]);
+    cout << "Column value(" << pager.column_types[column_pos] << "):";
     is >> val;
 
     pager.delete_rows(column_pos, val);
