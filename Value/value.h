@@ -6,9 +6,7 @@
 #define CPPDB_VALUE_H
 
 #include <string>
-#include "string_val.h"
-#include "float_val.h"
-#include "int.h"
+#include "base.h"
 #include "../Ptr/Ptr.h"
 
 class Value {

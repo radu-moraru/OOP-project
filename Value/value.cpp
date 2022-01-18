@@ -3,6 +3,7 @@
 //
 
 #include "value.h"
+#include "ValueFactory.h"
 
 std::istream& operator>>(std::istream& is, const Value& value) {
     value.value_ptr->read(is);
@@ -19,12 +20,7 @@ void write_to_buffer(const Value& val, char *buffer, std::size_t val_sz) {
 }
 
 Value::Value(const std::string& type, std::size_t size) {
-    if (type == "c")
-        value_ptr = new String();
-    else if (type == "i")
-        value_ptr = new Int();
-    else if (type == "f")
-        value_ptr = new Float();
+    value_ptr = ValueFactory::Instance()->createValue(type);
 }
 
 bool operator==(const Value& val1, const Value& val2) {
