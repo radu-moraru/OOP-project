@@ -19,11 +19,19 @@
 
 
 class ValueFactory {
+    // constructor accesibil doar pentru prima initiere a clasei
+    // in functia Instance()
+    ValueFactory() = default;
     std::map<std::string, std::function<Base*(void)>> functionRegistry;
 public:
     Ptr<Base> createValue(const std::string& type);
     void registerFactoryFunction(const std::string&, std::function<Base*(void)>);
     static ValueFactory *Instance();
+
+    // Constructorul de copiere si operatorul de copiere ar trebui sa fie
+    // inaccesibili de asemenea
+    ValueFactory(ValueFactory const&)   = delete;
+    void operator=(ValueFactory const&) = delete;
 };
 
 template<class T>
